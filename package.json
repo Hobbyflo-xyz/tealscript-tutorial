@@ -8,7 +8,7 @@
     "compile-contract": "tealscript contracts/tealscript-demo.algo.ts contracts/artifacts",
     "compile-dao-contract": "tealscript contracts/dao.algo.ts contracts/artifacts",
     "generate-components": "algokit-generate-component contracts/artifacts/TealscriptDemo.json contracts/artifacts/components",
-    "build": "npm run compile-dao-contract",
+    "build": "npm run compile-dao-contract && npm run generate-dao-client",
     "test": "npm run build && jest",
     "lint": "eslint . --ext .ts",
     "fix": "eslint . --ext .ts --fix"

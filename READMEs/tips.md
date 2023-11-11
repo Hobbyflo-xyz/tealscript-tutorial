@@ -9,3 +9,7 @@ algokit localnet console
 ```.sh
 goal account list
 ```
+
+## Reference YouTube tutorial series
+
+https://www.youtube.com/watch?v=H_ivNnXAcIg&list=PLwRyHoehE4346hSn28vlU0NqLqC6wz4rV

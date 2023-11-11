@@ -13,6 +13,6 @@
   },
   "editor.formatOnSave": true,
   "files.exclude": {
-      "**/.git": false
+      "**/.git": true
   },
 }

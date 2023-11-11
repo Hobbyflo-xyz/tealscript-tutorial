@@ -1,0 +1,24 @@
+{
+  "name": "Dao",
+  "desc": "",
+  "methods": [
+    {
+      "name": "createApplication",
+      "args": [],
+      "desc": "",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
+      "name": "getProposal",
+      "args": [],
+      "desc": "",
+      "returns": {
+        "type": "string",
+        "desc": ""
+      }
+    }
+  ]
+}

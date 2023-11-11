@@ -23,3 +23,8 @@ This template assumes you have a local network running on your machine. The easi
 ### Lint
 
 `npm run lint` will lint the contracts and tests with ESLint.
+
+### Joe Polny's Reference Source Code 
+
+https://github.com/algorand-bootcamp
+https://github.com/algorand-bootcamp/ts-beginner-en

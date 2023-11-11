@@ -49,6 +49,84 @@ createApplication:
 	app_global_put
 	retsub
 
+// bootstrap()uint64
+//
+// // mint DAO token
+abi_route_bootstrap:
+	byte 0x // push empty bytes to fill the stack frame for this subroutine's local variables
+
+	// execute bootstrap()uint64
+	callsub bootstrap
+	int 1
+	return
+
+bootstrap:
+	proto 1 0
+
+	// contracts/dao.algo.ts:15
+	// verifyTxn(this.txn, { sender: this.app.creator })
+	// verify sender
+	txn Sender
+	txna Applications 0
+	app_params_get AppCreator
+	assert
+	==
+	assert
+
+	// contracts/dao.algo.ts:16
+	// assert(!this.registeredAsa.exists)
+	txna Applications 0
+	byte 0x72656769737465726564417361 // "registeredAsa"
+	app_global_get_ex
+	swap
+	pop
+	!
+	assert
+
+	// contracts/dao.algo.ts:17
+	// registeredAsa = sendAssetCreation({
+	//       configAssetTotal: 1_000,
+	//       configAssetFreeze: this.app.address,
+	//     })
+	itxn_begin
+	int acfg
+	itxn_field TypeEnum
+
+	// contracts/dao.algo.ts:18
+	// configAssetTotal: 1_000
+	int 1_000
+	itxn_field ConfigAssetTotal
+
+	// contracts/dao.algo.ts:19
+	// configAssetFreeze: this.app.address
+	global CurrentApplicationAddress
+	itxn_field ConfigAssetFreeze
+
+	// Fee field not set, defaulting to 0
+	int 0
+	itxn_field Fee
+
+	// Submit inner transaction
+	itxn_submit
+	itxn CreatedAssetID
+	frame_bury -1 // registeredAsa: asset
+
+	// contracts/dao.algo.ts:22
+	// this.registeredAsa.value = registeredAsa
+	byte 0x72656769737465726564417361 // "registeredAsa"
+	frame_dig -1 // registeredAsa: asset
+	app_global_put
+
+	// contracts/dao.algo.ts:24
+	// return registeredAsa;
+	frame_dig -1 // registeredAsa: asset
+	itob
+	byte 0x151f7c75
+	swap
+	concat
+	log
+	retsub
+
 // vote(bool)void
 abi_route_vote:
 	// inFavor: bool
@@ -69,7 +147,7 @@ abi_route_vote:
 vote:
 	proto 1 0
 
-	// contracts/dao.algo.ts:14
+	// contracts/dao.algo.ts:28
 	// this.votesTotal.value = this.votesTotal.value + 1
 	byte 0x766f746573546f74616c // "votesTotal"
 	byte 0x766f746573546f74616c // "votesTotal"
@@ -79,13 +157,13 @@ vote:
 	app_global_put
 
 	// if0_condition
-	// contracts/dao.algo.ts:15
+	// contracts/dao.algo.ts:29
 	// inFavor
 	frame_dig -1 // inFavor: bool
 	bz if0_end
 
 	// if0_consequent
-	// contracts/dao.algo.ts:16
+	// contracts/dao.algo.ts:30
 	// this.votesInFavor.value = this.votesInFavor.value + 1
 	byte 0x766f746573496e4661766f72 // "votesInFavor"
 	byte 0x766f746573496e4661766f72 // "votesInFavor"
@@ -107,8 +185,8 @@ abi_route_getProposal:
 getProposal:
 	proto 0 0
 
-	// contracts/dao.algo.ts:21
-	// return this.proposal.value
+	// contracts/dao.algo.ts:35
+	// return this.proposal.value;
 	byte 0x70726f706f73616c // "proposal"
 	app_global_get
 	extract 2 0
@@ -134,8 +212,8 @@ abi_route_getVotes:
 getVotes:
 	proto 0 0
 
-	// contracts/dao.algo.ts:25
-	// return [this.votesInFavor.value, this.votesTotal.value]
+	// contracts/dao.algo.ts:39
+	// return [this.votesInFavor.value, this.votesTotal.value];
 	byte 0x766f746573496e4661766f72 // "votesInFavor"
 	app_global_get
 	itob
@@ -149,6 +227,27 @@ getVotes:
 	log
 	retsub
 
+// getRegisteredAsa()uint64
+abi_route_getRegisteredAsa:
+	// execute getRegisteredAsa()uint64
+	callsub getRegisteredAsa
+	int 1
+	return
+
+getRegisteredAsa:
+	proto 0 0
+
+	// contracts/dao.algo.ts:43
+	// return this.registeredAsa.value;
+	byte 0x72656769737465726564417361 // "registeredAsa"
+	app_global_get
+	itob
+	byte 0x151f7c75
+	swap
+	concat
+	log
+	retsub
+
 create_NoOp:
 	method "createApplication(string)void"
 	txna ApplicationArgs 0
@@ -156,9 +255,11 @@ create_NoOp:
 	err
 
 call_NoOp:
+	method "bootstrap()uint64"
 	method "vote(bool)void"
 	method "getProposal()string"
 	method "getVotes()(uint64,uint64)"
+	method "getRegisteredAsa()uint64"
 	txna ApplicationArgs 0
-	match abi_route_vote abi_route_getProposal abi_route_getVotes
+	match abi_route_bootstrap abi_route_vote abi_route_getProposal abi_route_getVotes abi_route_getRegisteredAsa
 	err

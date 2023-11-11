@@ -10,15 +10,16 @@ const fixture = algorandFixture();
 let appClient: DaoClient;
 
 describe('Dao', () => {
-  beforeEach(fixture.beforeEach);
-
+  let algod: algosdk.Algodv2;
   const proposal = 'A proposal';
   let sender: algosdk.Account;
   let registeredAsa: bigint;
+  beforeEach(fixture.beforeEach);
 
   beforeAll(async () => {
     await fixture.beforeEach();
-    const { algod, testAccount, kmd } = fixture.context;
+    const { testAccount, kmd } = fixture.context;
+    algod = fixture.context.algod;
 
     sender = await algokit.getOrCreateKmdWalletAccount(
       {
@@ -83,17 +84,68 @@ describe('Dao', () => {
     console.log('registeredAsa', registeredAsa);
   });
 
+  test('vote (Negative)', async () => {
+    await expect(
+      appClient.vote({
+        inFavor: true,
+        registeredAsa,
+      })
+    ).rejects.toThrow();
+  });
+
   test('getRegisteredAsa', async () => {
-    const testVal = await appClient.getRegisteredAsa({});
+    const testVal = await appClient.getRegisteredAsa({
+      registeredAsa,
+    });
     expect(testVal.return?.valueOf()).toBe(registeredAsa);
   });
 
+  test('register', async () => {
+    const registeredAsaOptInTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+      from: sender.addr,
+      to: sender.addr,
+      amount: 0,
+      assetIndex: Number(registeredAsa),
+      suggestedParams: await algokit.getTransactionParams(undefined, algod),
+    });
+
+    await algokit.sendTransaction({ from: sender, transaction: registeredAsaOptInTxn }, algod);
+
+    await appClient.register(
+      { registeredAsa },
+      {
+        sender,
+        sendParams: {
+          fee: algokit.microAlgos(3_000),
+        },
+      }
+    );
+
+    const registeredAsaTransferTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+      from: sender.addr,
+      to: sender.addr,
+      amount: 1,
+      assetIndex: Number(registeredAsa),
+      suggestedParams: await algokit.getTransactionParams(undefined, algod),
+    });
+
+    await expect(
+      algokit.sendTransaction(
+        {
+          from: sender,
+          transaction: registeredAsaTransferTxn,
+        },
+        algod
+      )
+    ).rejects.toThrow();
+  });
+
   test('vote & getVotes', async () => {
-    await appClient.vote({ inFavor: true });
+    await appClient.vote({ inFavor: true, registeredAsa }, { sender });
     const votesAfter = await appClient.getVotes({});
     expect(votesAfter.return?.valueOf()).toEqual([BigInt(1), BigInt(1)]);
 
-    await appClient.vote({ inFavor: false });
+    await appClient.vote({ inFavor: false, registeredAsa }, { sender });
     const votesAfter2 = await appClient.getVotes({});
     expect(votesAfter2.return?.valueOf()).toEqual([BigInt(1), BigInt(2)]);
   });

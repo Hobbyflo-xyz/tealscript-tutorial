@@ -23,6 +23,7 @@ type Props = {
   typedClient: DaoClient
   registeredAsa: DaoRegisterArgs['registeredAsa']
   algodClient: algosdk.Algodv2
+  getState: () => void
 }
 
 const DaoRegister = (props: Props) => {

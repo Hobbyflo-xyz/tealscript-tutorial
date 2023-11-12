@@ -46,6 +46,7 @@ export default function App() {
   const [registeredAsa, setRegisteredAsa] = useState<number>(0)
   const [votesTotal, setVotesTotal] = useState<number>(0)
   const [votesInFavor, setVotesInFavor] = useState<number>(0)
+  const [registered, setRegistered] = useState<boolean>(false)
   const { activeAddress } = useWallet()
 
   const resetState = async () => {
@@ -57,11 +58,20 @@ export default function App() {
   const getState = async () => {
     try {
       const state = await typedClient.getGlobalState()
-      console.log('state', state)
       setProposal(state.proposal!.asString())
-      setRegisteredAsa(state.registeredAsa!.asNumber() || 0)
+      const asa = state.registeredAsa!.asNumber() || 0
+      setRegisteredAsa(asa)
       setVotesInFavor(state.votesInFavor?.asNumber() || 0)
       setVotesTotal(state.votesTotal?.asNumber() || 0)
+
+      try {
+        const assetInfo = await algodClient.accountAssetInformation(activeAddress!, asa).do()
+        console.log('assetInfo', assetInfo['asset-holding'])
+        setRegistered(assetInfo['asset-holding']?.amount === 1)
+      } catch (e) {
+        console.warn(e)
+        setRegistered(false)
+      }
     } catch (e) {
       console.warn(e)
       setProposal('Invalid App ID')
@@ -153,7 +163,7 @@ export default function App() {
                 />
               )}
 
-              {activeAddress && appID !== 0 && (
+              {activeAddress && appID !== 0 && !registered && (
                 <DaoRegister
                   buttonClass="btn m-2"
                   buttonLoadingNode={<span className="loading loading-spinner" />}
@@ -161,10 +171,11 @@ export default function App() {
                   typedClient={typedClient}
                   registeredAsa={registeredAsa}
                   algodClient={algodClient}
+                  getState={getState}
                 />
               )}
 
-              {activeAddress && appID !== 0 && (
+              {activeAddress && appID !== 0 && registered && (
                 <div>
                   <DaoVote
                     buttonClass="btn m-2"

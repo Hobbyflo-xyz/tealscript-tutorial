@@ -82,13 +82,14 @@ export default function App() {
                 Welcome to <div className="font-bold">Hobbyflo</div>
               </h1>
               <p className="py-6">Build-a-bull</p>
-              <DaoCreateApplication
-                buttonClass="btn m-2"
-                buttonLoadingNode={<span className="loading loading-spinner" />}
-                buttonNode="Create DAO"
-                typedClient={typedClient}
-                proposal={'Proposal #1'}
-              />
+              {activeAddress && (
+                <DaoCreateApplication
+                  buttonClass="btn m-2"
+                  buttonLoadingNode={<span className="loading loading-spinner" />}
+                  buttonNode="Create DAO"
+                  typedClient={typedClient}
+                />
+              )}
               <ConnectWallet openModal={openWalletModal} closeModal={toggleWalletModal} />
             </div>
           </div>

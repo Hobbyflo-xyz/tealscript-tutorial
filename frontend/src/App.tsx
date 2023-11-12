@@ -39,6 +39,7 @@ if (import.meta.env.VITE_ALGOD_NETWORK === '') {
 
 export default function App() {
   const [openWalletModal, setOpenWalletModal] = useState<boolean>(false)
+  const [appID, setAppID] = useState<number>(0)
   const { activeAddress } = useWallet()
 
   const toggleWalletModal = () => {
@@ -82,12 +83,26 @@ export default function App() {
                 Welcome to <div className="font-bold">Hobbyflo</div>
               </h1>
               <p className="py-6">Build-a-bull</p>
-              {activeAddress && (
+
+              <div className="divider" />
+
+              <h3 className="font-bold m-2">DAO App ID</h3>
+              <input
+                type="number"
+                className="input input-bordered"
+                value={appID}
+                onChange={(e) => setAppID(e.currentTarget.valueAsNumber || 0)}
+              />
+
+              <div className="divider" />
+
+              {activeAddress && appID == 0 && (
                 <DaoCreateApplication
                   buttonClass="btn m-2"
                   buttonLoadingNode={<span className="loading loading-spinner" />}
                   buttonNode="Create DAO"
                   typedClient={typedClient}
+                  setAppID={setAppID}
                 />
               )}
               <ConnectWallet openModal={openWalletModal} closeModal={toggleWalletModal} />

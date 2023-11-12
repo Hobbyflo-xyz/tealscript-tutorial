@@ -20,6 +20,7 @@ type Props = {
   buttonLoadingNode?: ReactNode
   buttonNode: ReactNode
   typedClient: DaoClient
+  setAppID: (appID: number) => void
 }
 
 const DaoCreateApplication = (props: Props) => {
@@ -50,6 +51,9 @@ const DaoCreateApplication = (props: Props) => {
         sendParams: { fee: algokit.microAlgos(2_000) },
       },
     )
+
+    const { appId } = await props.typedClient.appClient.getAppReference()
+    props.setAppID(Number(appId))
 
     setLoading(false)
   }

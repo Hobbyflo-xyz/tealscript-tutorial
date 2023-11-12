@@ -8,6 +8,8 @@ import { SnackbarProvider } from 'notistack'
 import { useEffect, useState } from 'react'
 import ConnectWallet from './components/ConnectWallet'
 import DaoCreateApplication from './components/DaoCreateApplication'
+import DaoRegister from './components/DaoRegister'
+import DaoVote from './components/DaoVote'
 import { DaoClient } from './contracts/DaoClient'
 import { getAlgodConfigFromViteEnvironment, getKmdConfigFromViteEnvironment } from './utils/network/getAlgoClientConfigs'
 
@@ -41,14 +43,25 @@ export default function App() {
   const [openWalletModal, setOpenWalletModal] = useState<boolean>(false)
   const [appID, setAppID] = useState<number>(0)
   const [proposal, setProposal] = useState<string>('')
+  const [registeredAsa, setRegisteredAsa] = useState<number>(0)
+  const [votesTotal, setVotesTotal] = useState<number>(0)
+  const [votesInFavor, setVotesInFavor] = useState<number>(0)
   const { activeAddress } = useWallet()
 
-  // Every time the App ID changes get the corresponding proposal
-  const getProposal = async () => {
+  const resetState = async () => {
+    setRegisteredAsa(0)
+    setVotesInFavor(0)
+    setVotesTotal(0)
+  }
+
+  const getState = async () => {
     try {
       const state = await typedClient.getGlobalState()
       console.log('state', state)
       setProposal(state.proposal!.asString())
+      setRegisteredAsa(state.registeredAsa!.asNumber() || 0)
+      setVotesInFavor(state.votesInFavor?.asNumber() || 0)
+      setVotesTotal(state.votesTotal?.asNumber() || 0)
     } catch (e) {
       console.warn(e)
       setProposal('Invalid App ID')
@@ -57,10 +70,10 @@ export default function App() {
 
   useEffect(() => {
     if (appID === 0) {
-      // setProposal('The app ID must be set manually or via DAO creation')
-      setProposal('///')
+      setProposal('The app ID must be set manually or via DAO creation')
+      resetState()
     } else {
-      getProposal()
+      getState()
     }
   }, [appID])
 
@@ -124,7 +137,13 @@ export default function App() {
 
               <div className="divider" />
 
-              {activeAddress && appID == 0 && (
+              <h3 className="font-bold m-2">Votes</h3>
+
+              <p>
+                {votesInFavor} / {votesTotal}
+              </p>
+
+              {activeAddress && appID === 0 && (
                 <DaoCreateApplication
                   buttonClass="btn m-2"
                   buttonLoadingNode={<span className="loading loading-spinner" />}
@@ -133,6 +152,41 @@ export default function App() {
                   setAppID={setAppID}
                 />
               )}
+
+              {activeAddress && appID !== 0 && (
+                <DaoRegister
+                  buttonClass="btn m-2"
+                  buttonLoadingNode={<span className="loading loading-spinner" />}
+                  buttonNode="Register to Vote"
+                  typedClient={typedClient}
+                  registeredAsa={registeredAsa}
+                  algodClient={algodClient}
+                />
+              )}
+
+              {activeAddress && appID !== 0 && (
+                <div>
+                  <DaoVote
+                    buttonClass="btn m-2"
+                    buttonLoadingNode={<span className="loading loading-spinner" />}
+                    buttonNode="Against"
+                    typedClient={typedClient}
+                    inFavor={false}
+                    registeredAsa={registeredAsa}
+                    getState={getState}
+                  />
+                  <DaoVote
+                    buttonClass="btn m-2"
+                    buttonLoadingNode={<span className="loading loading-spinner" />}
+                    buttonNode="In Favor"
+                    typedClient={typedClient}
+                    inFavor={true}
+                    registeredAsa={registeredAsa}
+                    getState={getState}
+                  />
+                </div>
+              )}
+
               <ConnectWallet openModal={openWalletModal} closeModal={toggleWalletModal} />
             </div>
           </div>

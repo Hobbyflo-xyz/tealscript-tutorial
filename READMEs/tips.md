@@ -19,3 +19,8 @@ https://www.youtube.com/watch?v=H_ivNnXAcIg&list=PLwRyHoehE4346hSn28vlU0NqLqC6wz
 ```.sh
 algokit localnet explore
 ```
+
+### Intermediate Level Tutorial
+
+https://github.com/algorand-bootcamp#intermediate
+

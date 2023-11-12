@@ -5,7 +5,7 @@ import { PeraWalletConnect } from '@perawallet/connect'
 import { PROVIDER_ID, ProvidersArray, WalletProvider, useInitializeProviders, useWallet } from '@txnlab/use-wallet'
 import algosdk from 'algosdk'
 import { SnackbarProvider } from 'notistack'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import ConnectWallet from './components/ConnectWallet'
 import DaoCreateApplication from './components/DaoCreateApplication'
 import { DaoClient } from './contracts/DaoClient'
@@ -40,7 +40,29 @@ if (import.meta.env.VITE_ALGOD_NETWORK === '') {
 export default function App() {
   const [openWalletModal, setOpenWalletModal] = useState<boolean>(false)
   const [appID, setAppID] = useState<number>(0)
+  const [proposal, setProposal] = useState<string>('')
   const { activeAddress } = useWallet()
+
+  // Every time the App ID changes get the corresponding proposal
+  const getProposal = async () => {
+    try {
+      const state = await typedClient.getGlobalState()
+      console.log('state', state)
+      setProposal(state.proposal!.asString())
+    } catch (e) {
+      console.warn(e)
+      setProposal('Invalid App ID')
+    }
+  }
+
+  useEffect(() => {
+    if (appID === 0) {
+      // setProposal('The app ID must be set manually or via DAO creation')
+      setProposal('///')
+    } else {
+      getProposal()
+    }
+  }, [appID])
 
   const toggleWalletModal = () => {
     setOpenWalletModal(!openWalletModal)
@@ -57,7 +79,7 @@ export default function App() {
   const typedClient = new DaoClient(
     {
       resolveBy: 'id',
-      id: 0,
+      id: appID,
     },
     algodClient,
   )
@@ -93,6 +115,12 @@ export default function App() {
                 value={appID}
                 onChange={(e) => setAppID(e.currentTarget.valueAsNumber || 0)}
               />
+
+              <div className="divider" />
+
+              <h3 className="font-bold m-2">Proposal</h3>
+
+              <textarea className="textarea textarea-bordered m-2" value={proposal} onChange={() => {}} />
 
               <div className="divider" />
 

@@ -8,11 +8,11 @@ import { SnackbarProvider } from 'notistack'
 import { useEffect, useState } from 'react'
 import ConnectWallet from './components/ConnectWallet'
 import DaoCreateApplication from './components/DaoCreateApplication'
+import DaoDeregister from './components/DaoDeregister'
 import DaoRegister from './components/DaoRegister'
 import DaoVote from './components/DaoVote'
 import { DaoClient } from './contracts/DaoClient'
 import { getAlgodConfigFromViteEnvironment, getKmdConfigFromViteEnvironment } from './utils/network/getAlgoClientConfigs'
-import DaoCloseOutOfApplication from './components/DaoCloseOutOfApplication'
 
 let providersArray: ProvidersArray
 if (import.meta.env.VITE_ALGOD_NETWORK === '') {
@@ -77,9 +77,11 @@ export default function App() {
 
       // Check local state if the user has voted
       try {
-        const localState = await typedClient.getLocalState(activeAddress!)
-        setVoted(localState.inFavor !==undefined)
-      } catch(e) {
+        // const localState = await typedClient.getLocalState(activeAddress!)
+        // setVoted(localState.inFavor !== undefined)
+        const inFavor = await typedClient.appClient.getBoxValue(algosdk.decodeAddress(activeAddress!).publicKey)
+        setVoted(inFavor !== undefined)
+      } catch (e) {
         console.warn(e)
         setVoted(false)
       }
@@ -187,7 +189,7 @@ export default function App() {
               )}
 
               {activeAddress && appID !== 0 && registeredAsa !== 0 && registered && (
-                <DaoCloseOutOfApplication
+                <DaoDeregister
                   buttonClass="btn m-2"
                   buttonLoadingNode={<span className="loading loading-spinner" />}
                   buttonNode="Opt Out"
@@ -208,6 +210,7 @@ export default function App() {
                     inFavor={false}
                     registeredAsa={registeredAsa}
                     getState={getState}
+                    algodClient={algodClient}
                   />
                   <DaoVote
                     buttonClass="btn m-2"
@@ -217,6 +220,7 @@ export default function App() {
                     inFavor={true}
                     registeredAsa={registeredAsa}
                     getState={getState}
+                    algodClient={algodClient}
                   />
                 </div>
               )}

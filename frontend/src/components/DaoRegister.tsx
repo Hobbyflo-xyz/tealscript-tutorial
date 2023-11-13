@@ -14,7 +14,7 @@ import { Dao, DaoClient } from '../contracts/DaoClient'
   registeredAsa={registeredAsa}
 />
 */
-type DaoRegisterArgs = Dao['methods']['optInToApplication(asset)void']['argsObj']
+type DaoRegisterArgs = Dao['methods']['register(asset)void']['argsObj']
 
 type Props = {
   buttonClass: string
@@ -45,7 +45,8 @@ const DaoRegister = (props: Props) => {
 
     await algokit.sendTransaction({ from: sender, transaction: registeredAsaOptInTxn }, props.algodClient)
 
-    await props.typedClient.optIn.optInToApplication(
+    // await props.typedClient.optIn.optInToApplication(
+    await props.typedClient.register(
       {
         registeredAsa: props.registeredAsa,
       },

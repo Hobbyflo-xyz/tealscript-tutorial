@@ -1,5 +1,7 @@
 /* eslint-disable no-console */
+import * as algokit from '@algorandfoundation/algokit-utils'
 import { useWallet } from '@txnlab/use-wallet'
+import algosdk from 'algosdk'
 import { ReactNode, useState } from 'react'
 import { Dao, DaoClient } from '../contracts/DaoClient'
 
@@ -13,7 +15,7 @@ import { Dao, DaoClient } from '../contracts/DaoClient'
   registeredAsa={registeredAsa}
 />
 */
-type DaoVoteArgs = Dao['methods']['vote(bool,asset)void']['argsObj']
+type DaoVoteArgs = Dao['methods']['vote(pay,bool,asset)void']['argsObj']
 
 type Props = {
   buttonClass: string
@@ -23,6 +25,7 @@ type Props = {
   inFavor: DaoVoteArgs['inFavor']
   registeredAsa: DaoVoteArgs['registeredAsa']
   getState: () => void
+  algodClient: algosdk.Algodv2
 }
 
 const DaoVote = (props: Props) => {
@@ -33,12 +36,20 @@ const DaoVote = (props: Props) => {
   const callMethod = async () => {
     setLoading(true)
     console.log(`Calling vote`)
+    const { appAddress } = await props.typedClient.appClient.getAppReference()
+    const boxMBRPayment = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+      from: sender.addr,
+      to: appAddress,
+      amount: 15_700,
+      suggestedParams: await algokit.getTransactionParams(undefined, props.algodClient),
+    })
     await props.typedClient.vote(
       {
+        boxMBRPayment,
         inFavor: props.inFavor,
         registeredAsa: props.registeredAsa,
       },
-      { sender },
+      { sender, boxes: [algosdk.decodeAddress(sender.addr).publicKey] },
     )
     props.getState()
     setLoading(false)

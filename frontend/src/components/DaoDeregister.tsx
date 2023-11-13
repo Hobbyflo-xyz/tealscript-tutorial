@@ -5,19 +5,19 @@ import algosdk from 'algosdk'
 import { ReactNode, useState } from 'react'
 import { Dao, DaoClient } from '../contracts/DaoClient'
 
-type DaoRegisterArgs = Dao['methods']['closeOutOfApplication(asset)void']['argsObj']
+type DaoDeregisterArgs = Dao['methods']['deregister(asset)void']['argsObj']
 
 type Props = {
   buttonClass: string
   buttonLoadingNode?: ReactNode
   buttonNode: ReactNode
   typedClient: DaoClient
-  registeredAsa: DaoRegisterArgs['registeredAsa']
+  registeredAsa: DaoDeregisterArgs['registeredAsa']
   algodClient: algosdk.Algodv2
   getState: () => void
 }
 
-const DaoCloseOutOfApplication = (props: Props) => {
+const DaoDeregister = (props: Props) => {
   const [loading, setLoading] = useState<boolean>(false)
   const { activeAddress, signer } = useWallet()
   const sender = { signer, addr: activeAddress! }
@@ -26,7 +26,7 @@ const DaoCloseOutOfApplication = (props: Props) => {
     setLoading(true)
     console.log(`Calling closeOutOfApplication`)
 
-    await props.typedClient.closeOut.closeOutOfApplication(
+    await props.typedClient.deregister(
       {
         registeredAsa: props.registeredAsa,
       },
@@ -35,12 +35,11 @@ const DaoCloseOutOfApplication = (props: Props) => {
         sendParams: {
           fee: algokit.microAlgos(3_000),
         },
+        boxes: [algosdk.decodeAddress(sender.addr).publicKey],
       },
     )
 
-    const {
-      appAddress
-    } = await props.typedClient.appClient.getAppReference()
+    const { appAddress } = await props.typedClient.appClient.getAppReference()
 
     const registeredAsaCloseTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
       from: sender.addr,
@@ -64,4 +63,4 @@ const DaoCloseOutOfApplication = (props: Props) => {
   )
 }
 
-export default DaoCloseOutOfApplication
+export default DaoDeregister

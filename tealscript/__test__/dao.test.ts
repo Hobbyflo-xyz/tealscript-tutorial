@@ -25,7 +25,6 @@ describe('Dao', () => {
       amount: 15_700,
       suggestedParams: await algokit.getTransactionParams(undefined, algod)
     })
-
     await appClient.vote({
       boxMBRPayment,
       inFavor: inFavor,

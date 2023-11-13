@@ -6,6 +6,9 @@ class Dao extends Contract {
   votesTotal = GlobalStateKey<number>();
   votesInFavor = GlobalStateKey<number>();
 
+  // use local state to record if someone has voted or not
+  inFavor = LocalStateKey<boolean>();
+
   createApplication(proposal: string): void {
     this.proposal.value = proposal;
   }
@@ -17,6 +20,7 @@ class Dao extends Contract {
     const registeredAsa = sendAssetCreation({
       configAssetTotal: 1_000,
       configAssetFreeze: this.app.address,
+      configAssetClawback: this.app.address,
     });
 
     this.registeredAsa.value = registeredAsa;
@@ -24,7 +28,8 @@ class Dao extends Contract {
     return registeredAsa;
   }
 
-  register(registeredAsa: Asset): void {
+  // register(registeredAsa: Asset): void {
+  optInToApplication(registeredAsa: Asset): void {
     assert(this.txn.sender.assetBalance(this.registeredAsa.value) === 0);
     sendAssetTransfer({
       xferAsset: this.registeredAsa.value,
@@ -39,8 +44,35 @@ class Dao extends Contract {
     });
   }
 
+  private forgetVote(): void {
+    // Delete the users vote when they clear state
+    if (this.inFavor(this.txn.sender).exists) {
+      this.votesTotal.value = this.votesTotal.value - 1;
+      if (this.inFavor(this.txn.sender).value) {
+        this.votesInFavor.value = this.votesInFavor.value - 1;
+      }
+    }
+  }
+
+  closeOutOfApplication(registeredAsa: Asset): void {
+    this.forgetVote();
+
+    sendAssetTransfer({
+      xferAsset: this.registeredAsa.value,
+      assetSender: this.txn.sender,
+      assetReceiver: this.app.address,
+      assetAmount: 1,
+    });
+  }
+
+  clearState(): void {
+    this.forgetVote();
+  }
+
   vote(inFavor: boolean, registeredAsa: Asset): void {
     assert(this.txn.sender.assetBalance(this.registeredAsa.value) === 1);
+    assert(!this.inFavor(this.txn.sender).exists);
+    this.inFavor(this.txn.sender).value = inFavor;
     this.votesTotal.value = this.votesTotal.value + 1;
     if (inFavor) {
       this.votesInFavor.value = this.votesInFavor.value + 1;

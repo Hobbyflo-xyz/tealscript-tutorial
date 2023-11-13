@@ -111,7 +111,8 @@ describe('Dao', () => {
 
     await algokit.sendTransaction({ from: sender, transaction: registeredAsaOptInTxn }, algod);
 
-    await appClient.register(
+    // await appClient.register(
+    await appClient.optIn.optInToApplication(
       { registeredAsa },
       {
         sender,
@@ -142,11 +143,109 @@ describe('Dao', () => {
 
   test('vote & getVotes', async () => {
     await appClient.vote({ inFavor: true, registeredAsa }, { sender });
+
     const votesAfter = await appClient.getVotes({});
     expect(votesAfter.return?.valueOf()).toEqual([BigInt(1), BigInt(1)]);
 
-    await appClient.vote({ inFavor: false, registeredAsa }, { sender });
+    await expect(appClient.vote({ inFavor: false, registeredAsa }, { sender })).rejects.toThrow();
+    // const votesAfter2 = await appClient.getVotes({});
+    // expect(votesAfter2.return?.valueOf()).toEqual([BigInt(1), BigInt(2)]);
+  });
+
+  test('deregister', async () => {
+    await appClient.closeOut.closeOutOfApplication(
+      {
+        registeredAsa,
+      },
+      {
+        sender,
+        sendParams: {
+          fee: algokit.microAlgos(2_000),
+        },
+      }
+    );
+
+    const votesAfter = await appClient.getVotes({});
+    expect(votesAfter.return?.valueOf()).toEqual([BigInt(0), BigInt(0)]);
+
+    await expect(
+      appClient.vote(
+        { inFavor: true, registeredAsa },
+        {
+          sender,
+        }
+      )
+    ).rejects.toThrow();
+
+    const { appAddress } = await appClient.appClient.getAppReference();
+
+    const registeredAsaCloseTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+      from: sender.addr,
+      to: appAddress,
+      closeRemainderTo: appAddress,
+      amount: 0,
+      assetIndex: Number(registeredAsa),
+      suggestedParams: await algokit.getTransactionParams(undefined, algod),
+    });
+
+    await algokit.sendTransaction(
+      {
+        transaction: registeredAsaCloseTxn,
+        from: sender,
+      },
+      algod
+    );
+
+    // --- --- Opt-in --- ---
+
+    const registeredAsaOptInTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+      from: sender.addr,
+      to: sender.addr,
+      amount: 0,
+      assetIndex: Number(registeredAsa),
+      suggestedParams: await algokit.getTransactionParams(undefined, algod),
+    });
+
+    await algokit.sendTransaction(
+      {
+        transaction: registeredAsaOptInTxn,
+        from: sender,
+      },
+      algod
+    );
+
+    try {
+      await appClient.optIn.optInToApplication(
+        {
+          registeredAsa,
+        },
+        {
+          sender,
+          sendParams: {
+            fee: algokit.microAlgos(3_000),
+          },
+        }
+      );
+    } catch (e) {
+      console.warn(e);
+      throw e;
+    }
+
+    await appClient.vote({ inFavor: true, registeredAsa }, { sender });
+
     const votesAfter2 = await appClient.getVotes({});
-    expect(votesAfter2.return?.valueOf()).toEqual([BigInt(1), BigInt(2)]);
+    expect(votesAfter2.return?.valueOf()).toEqual([BigInt(1), BigInt(1)]);
+  });
+
+  test('clearState', async () => {
+    try {
+      await appClient.clearState({ sender });
+    } catch (e) {
+      console.warn(e);
+      throw e;
+    }
+    const votesAfter = await appClient.getVotes({});
+    expect(votesAfter.return?.valueOf()).toEqual([BigInt(0), BigInt(0)]);
+    await expect(appClient.vote({ inFavor: false, registeredAsa }, { sender })).rejects.toThrow();
   });
 });

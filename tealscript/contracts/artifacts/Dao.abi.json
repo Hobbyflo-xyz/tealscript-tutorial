@@ -27,7 +27,22 @@
       }
     },
     {
-      "name": "register",
+      "name": "optInToApplication",
+      "args": [
+        {
+          "name": "registeredAsa",
+          "type": "asset",
+          "desc": ""
+        }
+      ],
+      "desc": "",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
+      "name": "closeOutOfApplication",
       "args": [
         {
           "name": "registeredAsa",

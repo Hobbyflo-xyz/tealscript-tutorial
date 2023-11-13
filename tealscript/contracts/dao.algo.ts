@@ -6,8 +6,11 @@ class Dao extends Contract {
   votesTotal = GlobalStateKey<number>();
   votesInFavor = GlobalStateKey<number>();
 
-  // use local state to record if someone has voted or not
-  inFavor = LocalStateKey<boolean>();
+  // use local storage to record if someone has voted or not
+  // inFavor = LocalStateKey<boolean>();
+
+  // use local storage to record if someone has voted or not
+  inFavor = BoxMap<Address, boolean>();
 
   createApplication(proposal: string): void {
     this.proposal.value = proposal;
@@ -28,8 +31,8 @@ class Dao extends Contract {
     return registeredAsa;
   }
 
-  // register(registeredAsa: Asset): void {
-  optInToApplication(registeredAsa: Asset): void {
+  // optInToApplication(registeredAsa: Asset): void {
+  register(registeredAsa: Asset): void {
     assert(this.txn.sender.assetBalance(this.registeredAsa.value) === 0);
     sendAssetTransfer({
       xferAsset: this.registeredAsa.value,
@@ -44,18 +47,23 @@ class Dao extends Contract {
     });
   }
 
-  private forgetVote(): void {
+  // closeOutOfApplication(registeredAsa: Asset): void {
+  deregister(registeredAsa: Asset): void {
     // Delete the users vote when they clear state
     if (this.inFavor(this.txn.sender).exists) {
       this.votesTotal.value = this.votesTotal.value - 1;
       if (this.inFavor(this.txn.sender).value) {
         this.votesInFavor.value = this.votesInFavor.value - 1;
       }
-    }
-  }
 
-  closeOutOfApplication(registeredAsa: Asset): void {
-    this.forgetVote();
+      const preMBR = this.app.address.minBalance;
+      this.inFavor(this.txn.sender).delete()
+
+      sendPayment({
+        amount: preMBR - this.app.address.minBalance,
+        receiver: this.txn.sender
+      })
+    }
 
     sendAssetTransfer({
       xferAsset: this.registeredAsa.value,
@@ -65,14 +73,15 @@ class Dao extends Contract {
     });
   }
 
-  clearState(): void {
-    this.forgetVote();
-  }
-
-  vote(inFavor: boolean, registeredAsa: Asset): void {
+  vote(boxMBRPayment: PayTxn, inFavor: boolean, registeredAsa: Asset): void {
     assert(this.txn.sender.assetBalance(this.registeredAsa.value) === 1);
     assert(!this.inFavor(this.txn.sender).exists);
+    const preBoxMBR = this.app.address.minBalance;
     this.inFavor(this.txn.sender).value = inFavor;
+    // verifyTxn(boxMBRPayment, {
+    //   receiver: this.app.address,
+    //   amount: this.app.address.minBalance - preBoxMBR
+    // })`
     this.votesTotal.value = this.votesTotal.value + 1;
     if (inFavor) {
       this.votesInFavor.value = this.votesInFavor.value + 1;

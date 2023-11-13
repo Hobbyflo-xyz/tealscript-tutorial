@@ -14,6 +14,53 @@ describe('Dao', () => {
   const proposal = 'A proposal';
   let sender: algosdk.Account;
   let registeredAsa: bigint;
+
+  const vote = async (inFavor: boolean) => {
+    const {
+      appAddress
+    } = await appClient.appClient.getAppReference()
+    const boxMBRPayment = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+      from: sender.addr,
+      to: appAddress,
+      amount: 15_700,
+      suggestedParams: await algokit.getTransactionParams(undefined, algod)
+    })
+
+    await appClient.vote({
+      boxMBRPayment,
+      inFavor: inFavor,
+      registeredAsa
+    }, {
+      sender,
+      boxes: [
+        algosdk.decodeAddress(sender.addr).publicKey
+      ]
+    })
+  }
+
+  const register = async () => {
+    const registeredAsaOptInTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+      from: sender.addr,
+      to: sender.addr,
+      amount: 0,
+      assetIndex: Number(registeredAsa),
+      suggestedParams: await algokit.getTransactionParams(undefined, algod),
+    });
+
+    await algokit.sendTransaction({ from: sender, transaction: registeredAsaOptInTxn }, algod);
+
+    await appClient.register(
+    // await appClient.optIn.optInToApplication(
+      { registeredAsa },
+      {
+        sender,
+        sendParams: {
+          fee: algokit.microAlgos(3_000),
+        },
+      }
+    );
+  }
+
   beforeEach(fixture.beforeEach);
 
   beforeAll(async () => {
@@ -48,6 +95,7 @@ describe('Dao', () => {
   });
 
   test('bootstrap (Negative)', async () => {
+    console.log('bootstrap (Negative)')
     await appClient.appClient.fundAppAccount(algokit.microAlgos(200_000));
 
     // default fee per txn is 0.001 ALGO for 1_000 mAlgo
@@ -67,6 +115,7 @@ describe('Dao', () => {
   });
 
   test('bootstrap', async () => {
+    console.log('bootstrap')
     await appClient.appClient.fundAppAccount(algokit.microAlgos(200_000));
 
     // default fee per txn is 0.001 ALGO for 1_000 mAlgo
@@ -85,15 +134,14 @@ describe('Dao', () => {
   });
 
   test('vote (Negative)', async () => {
+    console.log('vote (Negative)')
     await expect(
-      appClient.vote({
-        inFavor: true,
-        registeredAsa,
-      })
+      vote(false)
     ).rejects.toThrow();
   });
 
   test('getRegisteredAsa', async () => {
+    console.log('getRegisteredAsa')
     const testVal = await appClient.getRegisteredAsa({
       registeredAsa,
     });
@@ -101,67 +149,61 @@ describe('Dao', () => {
   });
 
   test('register', async () => {
-    const registeredAsaOptInTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-      from: sender.addr,
-      to: sender.addr,
-      amount: 0,
-      assetIndex: Number(registeredAsa),
-      suggestedParams: await algokit.getTransactionParams(undefined, algod),
-    });
+    try {
+      console.log('register')
+      // call register
+      await register()
 
-    await algokit.sendTransaction({ from: sender, transaction: registeredAsaOptInTxn }, algod);
+      const registeredAsaTransferTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+        from: sender.addr,
+        to: sender.addr,
+        amount: 1,
+        assetIndex: Number(registeredAsa),
+        suggestedParams: await algokit.getTransactionParams(undefined, algod),
+      });
 
-    // await appClient.register(
-    await appClient.optIn.optInToApplication(
-      { registeredAsa },
-      {
-        sender,
-        sendParams: {
-          fee: algokit.microAlgos(3_000),
-        },
-      }
-    );
-
-    const registeredAsaTransferTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-      from: sender.addr,
-      to: sender.addr,
-      amount: 1,
-      assetIndex: Number(registeredAsa),
-      suggestedParams: await algokit.getTransactionParams(undefined, algod),
-    });
-
-    await expect(
-      algokit.sendTransaction(
-        {
-          from: sender,
-          transaction: registeredAsaTransferTxn,
-        },
-        algod
-      )
-    ).rejects.toThrow();
+      await expect(
+        algokit.sendTransaction(
+          {
+            from: sender,
+            transaction: registeredAsaTransferTxn,
+          },
+          algod
+        )
+      ).rejects.toThrow();
+    } catch(e) {
+      console.warn(e)
+      throw e
+    }
   });
 
   test('vote & getVotes', async () => {
-    await appClient.vote({ inFavor: true, registeredAsa }, { sender });
+    console.log('vote & getVotes')
+    await vote(true)
 
     const votesAfter = await appClient.getVotes({});
     expect(votesAfter.return?.valueOf()).toEqual([BigInt(1), BigInt(1)]);
 
-    await expect(appClient.vote({ inFavor: false, registeredAsa }, { sender })).rejects.toThrow();
+    await expect(vote(false)).rejects.toThrow();
     // const votesAfter2 = await appClient.getVotes({});
+    // console.warn('votesAfter2', votesAfter2)
     // expect(votesAfter2.return?.valueOf()).toEqual([BigInt(1), BigInt(2)]);
   });
 
   test('deregister', async () => {
-    await appClient.closeOut.closeOutOfApplication(
+    console.log('deregister')
+    await appClient.deregister(
       {
         registeredAsa,
       },
       {
         sender,
         sendParams: {
-          fee: algokit.microAlgos(2_000),
+          fee: algokit.microAlgos(3_000),
         },
+        boxes: [
+          algosdk.decodeAddress(sender.addr).publicKey
+        ]
       }
     );
 
@@ -169,12 +211,7 @@ describe('Dao', () => {
     expect(votesAfter.return?.valueOf()).toEqual([BigInt(0), BigInt(0)]);
 
     await expect(
-      appClient.vote(
-        { inFavor: true, registeredAsa },
-        {
-          sender,
-        }
-      )
+      vote(false)
     ).rejects.toThrow();
 
     const { appAddress } = await appClient.appClient.getAppReference();
@@ -213,39 +250,11 @@ describe('Dao', () => {
       },
       algod
     );
+    await register()
 
-    try {
-      await appClient.optIn.optInToApplication(
-        {
-          registeredAsa,
-        },
-        {
-          sender,
-          sendParams: {
-            fee: algokit.microAlgos(3_000),
-          },
-        }
-      );
-    } catch (e) {
-      console.warn(e);
-      throw e;
-    }
-
-    await appClient.vote({ inFavor: true, registeredAsa }, { sender });
+    await vote(true);
 
     const votesAfter2 = await appClient.getVotes({});
     expect(votesAfter2.return?.valueOf()).toEqual([BigInt(1), BigInt(1)]);
-  });
-
-  test('clearState', async () => {
-    try {
-      await appClient.clearState({ sender });
-    } catch (e) {
-      console.warn(e);
-      throw e;
-    }
-    const votesAfter = await appClient.getVotes({});
-    expect(votesAfter.return?.valueOf()).toEqual([BigInt(0), BigInt(0)]);
-    await expect(appClient.vote({ inFavor: false, registeredAsa }, { sender })).rejects.toThrow();
   });
 });

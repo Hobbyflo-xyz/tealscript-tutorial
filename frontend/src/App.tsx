@@ -12,6 +12,7 @@ import DaoRegister from './components/DaoRegister'
 import DaoVote from './components/DaoVote'
 import { DaoClient } from './contracts/DaoClient'
 import { getAlgodConfigFromViteEnvironment, getKmdConfigFromViteEnvironment } from './utils/network/getAlgoClientConfigs'
+import DaoCloseOutOfApplication from './components/DaoCloseOutOfApplication'
 
 let providersArray: ProvidersArray
 if (import.meta.env.VITE_ALGOD_NETWORK === '') {
@@ -47,6 +48,7 @@ export default function App() {
   const [votesTotal, setVotesTotal] = useState<number>(0)
   const [votesInFavor, setVotesInFavor] = useState<number>(0)
   const [registered, setRegistered] = useState<boolean>(false)
+  const [voted, setVoted] = useState<boolean>(false)
   const { activeAddress } = useWallet()
 
   const resetState = async () => {
@@ -71,6 +73,15 @@ export default function App() {
       } catch (e) {
         console.warn(e)
         setRegistered(false)
+      }
+
+      // Check local state if the user has voted
+      try {
+        const localState = await typedClient.getLocalState(activeAddress!)
+        setVoted(localState.inFavor !==undefined)
+      } catch(e) {
+        console.warn(e)
+        setVoted(false)
       }
     } catch (e) {
       console.warn(e)
@@ -163,7 +174,7 @@ export default function App() {
                 />
               )}
 
-              {activeAddress && appID !== 0 && !registered && (
+              {activeAddress && appID !== 0 && registeredAsa !== 0 && !registered && (
                 <DaoRegister
                   buttonClass="btn m-2"
                   buttonLoadingNode={<span className="loading loading-spinner" />}
@@ -175,7 +186,19 @@ export default function App() {
                 />
               )}
 
-              {activeAddress && appID !== 0 && registered && (
+              {activeAddress && appID !== 0 && registeredAsa !== 0 && registered && (
+                <DaoCloseOutOfApplication
+                  buttonClass="btn m-2"
+                  buttonLoadingNode={<span className="loading loading-spinner" />}
+                  buttonNode="Opt Out"
+                  typedClient={typedClient}
+                  registeredAsa={registeredAsa}
+                  algodClient={algodClient}
+                  getState={getState}
+                />
+              )}
+
+              {activeAddress && appID !== 0 && registered && !voted && (
                 <div>
                   <DaoVote
                     buttonClass="btn m-2"

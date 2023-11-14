@@ -22,19 +22,23 @@ switch create_NoOp NOT_IMPLEMENTED NOT_IMPLEMENTED NOT_IMPLEMENTED NOT_IMPLEMENT
 NOT_IMPLEMENTED:
 	err
 
-// createApplication(string)void
+// createApplication(uint64,string)void
 abi_route_createApplication:
+	// length: uint64
+	txna ApplicationArgs 2
+	btoi
+
 	// proposal: string
 	txna ApplicationArgs 1
 	extract 2 0
 
-	// execute createApplication(string)void
+	// execute createApplication(uint64,string)void
 	callsub createApplication
 	int 1
 	return
 
 createApplication:
-	proto 1 0
+	proto 2 0
 
 	// contracts/dao.algo.ts:16
 	// this.proposal.value = proposal
@@ -46,6 +50,14 @@ createApplication:
 	extract 6 2
 	swap
 	concat
+	app_global_put
+
+	// contracts/dao.algo.ts:17
+	// this.endTime.value = length + globals.latestTimestamp
+	byte 0x656e6454696d65 // "endTime"
+	frame_dig -2 // length: uint64
+	global LatestTimestamp
+	+
 	app_global_put
 	retsub
 
@@ -63,7 +75,7 @@ abi_route_bootstrap:
 bootstrap:
 	proto 1 0
 
-	// contracts/dao.algo.ts:21
+	// contracts/dao.algo.ts:26
 	// verifyTxn(this.txn, { sender: this.app.creator })
 	// verify sender
 	txn Sender
@@ -73,7 +85,7 @@ bootstrap:
 	==
 	assert
 
-	// contracts/dao.algo.ts:22
+	// contracts/dao.algo.ts:27
 	// assert(!this.registeredAsa.exists)
 	txna Applications 0
 	byte 0x72656769737465726564417361 // "registeredAsa"
@@ -83,7 +95,7 @@ bootstrap:
 	!
 	assert
 
-	// contracts/dao.algo.ts:23
+	// contracts/dao.algo.ts:28
 	// registeredAsa = sendAssetCreation({
 	//       configAssetTotal: 1_000,
 	//       configAssetFreeze: this.app.address,
@@ -93,17 +105,17 @@ bootstrap:
 	int acfg
 	itxn_field TypeEnum
 
-	// contracts/dao.algo.ts:24
+	// contracts/dao.algo.ts:29
 	// configAssetTotal: 1_000
 	int 1_000
 	itxn_field ConfigAssetTotal
 
-	// contracts/dao.algo.ts:25
+	// contracts/dao.algo.ts:30
 	// configAssetFreeze: this.app.address
 	global CurrentApplicationAddress
 	itxn_field ConfigAssetFreeze
 
-	// contracts/dao.algo.ts:26
+	// contracts/dao.algo.ts:31
 	// configAssetClawback: this.app.address
 	global CurrentApplicationAddress
 	itxn_field ConfigAssetClawback
@@ -117,13 +129,13 @@ bootstrap:
 	itxn CreatedAssetID
 	frame_bury -1 // registeredAsa: asset
 
-	// contracts/dao.algo.ts:29
+	// contracts/dao.algo.ts:34
 	// this.registeredAsa.value = registeredAsa
 	byte 0x72656769737465726564417361 // "registeredAsa"
 	frame_dig -1 // registeredAsa: asset
 	app_global_put
 
-	// contracts/dao.algo.ts:31
+	// contracts/dao.algo.ts:36
 	// return registeredAsa;
 	frame_dig -1 // registeredAsa: asset
 	itob
@@ -150,7 +162,7 @@ abi_route_register:
 register:
 	proto 1 0
 
-	// contracts/dao.algo.ts:36
+	// contracts/dao.algo.ts:41
 	// assert(this.txn.sender.assetBalance(this.registeredAsa.value) === 0)
 	txn Sender
 	byte 0x72656769737465726564417361 // "registeredAsa"
@@ -161,7 +173,7 @@ register:
 	==
 	assert
 
-	// contracts/dao.algo.ts:37
+	// contracts/dao.algo.ts:42
 	// sendAssetTransfer({
 	//       xferAsset: this.registeredAsa.value,
 	//       assetReceiver: this.txn.sender,
@@ -171,18 +183,18 @@ register:
 	int axfer
 	itxn_field TypeEnum
 
-	// contracts/dao.algo.ts:38
+	// contracts/dao.algo.ts:43
 	// xferAsset: this.registeredAsa.value
 	byte 0x72656769737465726564417361 // "registeredAsa"
 	app_global_get
 	itxn_field XferAsset
 
-	// contracts/dao.algo.ts:39
+	// contracts/dao.algo.ts:44
 	// assetReceiver: this.txn.sender
 	txn Sender
 	itxn_field AssetReceiver
 
-	// contracts/dao.algo.ts:40
+	// contracts/dao.algo.ts:45
 	// assetAmount: 1
 	int 1
 	itxn_field AssetAmount
@@ -194,7 +206,7 @@ register:
 	// Submit inner transaction
 	itxn_submit
 
-	// contracts/dao.algo.ts:43
+	// contracts/dao.algo.ts:48
 	// sendAssetFreeze({
 	//       freezeAsset: this.registeredAsa.value,
 	//       freezeAssetAccount: this.txn.sender,
@@ -204,18 +216,18 @@ register:
 	int afrz
 	itxn_field TypeEnum
 
-	// contracts/dao.algo.ts:44
+	// contracts/dao.algo.ts:49
 	// freezeAsset: this.registeredAsa.value
 	byte 0x72656769737465726564417361 // "registeredAsa"
 	app_global_get
 	itxn_field FreezeAsset
 
-	// contracts/dao.algo.ts:45
+	// contracts/dao.algo.ts:50
 	// freezeAssetAccount: this.txn.sender
 	txn Sender
 	itxn_field FreezeAssetAccount
 
-	// contracts/dao.algo.ts:46
+	// contracts/dao.algo.ts:51
 	// freezeAssetFrozen: true
 	int 1
 	itxn_field FreezeAssetFrozen
@@ -248,7 +260,7 @@ deregister:
 	proto 2 0
 
 	// if0_condition
-	// contracts/dao.algo.ts:53
+	// contracts/dao.algo.ts:58
 	// this.inFavor(this.txn.sender).exists
 	txn Sender
 	box_len
@@ -257,7 +269,7 @@ deregister:
 	bz if0_end
 
 	// if0_consequent
-	// contracts/dao.algo.ts:54
+	// contracts/dao.algo.ts:59
 	// this.votesTotal.value = this.votesTotal.value - 1
 	byte 0x766f746573546f74616c // "votesTotal"
 	byte 0x766f746573546f74616c // "votesTotal"
@@ -267,7 +279,7 @@ deregister:
 	app_global_put
 
 	// if1_condition
-	// contracts/dao.algo.ts:55
+	// contracts/dao.algo.ts:60
 	// this.inFavor(this.txn.sender).value
 	txn Sender
 	box_get
@@ -277,7 +289,7 @@ deregister:
 	bz if1_end
 
 	// if1_consequent
-	// contracts/dao.algo.ts:56
+	// contracts/dao.algo.ts:61
 	// this.votesInFavor.value = this.votesInFavor.value - 1
 	byte 0x766f746573496e4661766f72 // "votesInFavor"
 	byte 0x766f746573496e4661766f72 // "votesInFavor"
@@ -287,19 +299,19 @@ deregister:
 	app_global_put
 
 if1_end:
-	// contracts/dao.algo.ts:59
+	// contracts/dao.algo.ts:64
 	// preMBR = this.app.address.minBalance
 	global CurrentApplicationAddress
 	acct_params_get AcctMinBalance
 	assert
 	frame_bury -2 // preMBR: uint64
 
-	// contracts/dao.algo.ts:60
+	// contracts/dao.algo.ts:65
 	// this.inFavor(this.txn.sender).delete()
 	txn Sender
 	box_del
 
-	// contracts/dao.algo.ts:62
+	// contracts/dao.algo.ts:67
 	// sendPayment({
 	//         amount: preMBR - this.app.address.minBalance,
 	//         receiver: this.txn.sender
@@ -308,7 +320,7 @@ if1_end:
 	int pay
 	itxn_field TypeEnum
 
-	// contracts/dao.algo.ts:63
+	// contracts/dao.algo.ts:68
 	// amount: preMBR - this.app.address.minBalance
 	frame_dig -2 // preMBR: uint64
 	global CurrentApplicationAddress
@@ -317,7 +329,7 @@ if1_end:
 	-
 	itxn_field Amount
 
-	// contracts/dao.algo.ts:64
+	// contracts/dao.algo.ts:69
 	// receiver: this.txn.sender
 	txn Sender
 	itxn_field Receiver
@@ -330,7 +342,7 @@ if1_end:
 	itxn_submit
 
 if0_end:
-	// contracts/dao.algo.ts:68
+	// contracts/dao.algo.ts:73
 	// sendAssetTransfer({
 	//       xferAsset: this.registeredAsa.value,
 	//       assetSender: this.txn.sender,
@@ -341,23 +353,23 @@ if0_end:
 	int axfer
 	itxn_field TypeEnum
 
-	// contracts/dao.algo.ts:69
+	// contracts/dao.algo.ts:74
 	// xferAsset: this.registeredAsa.value
 	byte 0x72656769737465726564417361 // "registeredAsa"
 	app_global_get
 	itxn_field XferAsset
 
-	// contracts/dao.algo.ts:70
+	// contracts/dao.algo.ts:75
 	// assetSender: this.txn.sender
 	txn Sender
 	itxn_field AssetSender
 
-	// contracts/dao.algo.ts:71
+	// contracts/dao.algo.ts:76
 	// assetReceiver: this.app.address
 	global CurrentApplicationAddress
 	itxn_field AssetReceiver
 
-	// contracts/dao.algo.ts:72
+	// contracts/dao.algo.ts:77
 	// assetAmount: 1
 	int 1
 	itxn_field AssetAmount
@@ -407,7 +419,15 @@ abi_route_vote:
 vote:
 	proto 4 0
 
-	// contracts/dao.algo.ts:77
+	// contracts/dao.algo.ts:82
+	// assert(globals.latestTimestamp <= this.endTime.value)
+	global LatestTimestamp
+	byte 0x656e6454696d65 // "endTime"
+	app_global_get
+	<=
+	assert
+
+	// contracts/dao.algo.ts:83
 	// assert(this.txn.sender.assetBalance(this.registeredAsa.value) === 1)
 	txn Sender
 	byte 0x72656769737465726564417361 // "registeredAsa"
@@ -418,7 +438,7 @@ vote:
 	==
 	assert
 
-	// contracts/dao.algo.ts:78
+	// contracts/dao.algo.ts:84
 	// assert(!this.inFavor(this.txn.sender).exists)
 	txn Sender
 	box_len
@@ -427,14 +447,14 @@ vote:
 	!
 	assert
 
-	// contracts/dao.algo.ts:79
+	// contracts/dao.algo.ts:85
 	// preBoxMBR = this.app.address.minBalance
 	global CurrentApplicationAddress
 	acct_params_get AcctMinBalance
 	assert
 	frame_bury -4 // preBoxMBR: uint64
 
-	// contracts/dao.algo.ts:80
+	// contracts/dao.algo.ts:86
 	// this.inFavor(this.txn.sender).value = inFavor
 	txn Sender
 	frame_dig -2 // inFavor: bool
@@ -444,7 +464,7 @@ vote:
 	setbit
 	box_put
 
-	// contracts/dao.algo.ts:85
+	// contracts/dao.algo.ts:91
 	// this.votesTotal.value = this.votesTotal.value + 1
 	byte 0x766f746573546f74616c // "votesTotal"
 	byte 0x766f746573546f74616c // "votesTotal"
@@ -454,13 +474,13 @@ vote:
 	app_global_put
 
 	// if2_condition
-	// contracts/dao.algo.ts:86
+	// contracts/dao.algo.ts:92
 	// inFavor
 	frame_dig -2 // inFavor: bool
 	bz if2_end
 
 	// if2_consequent
-	// contracts/dao.algo.ts:87
+	// contracts/dao.algo.ts:93
 	// this.votesInFavor.value = this.votesInFavor.value + 1
 	byte 0x766f746573496e4661766f72 // "votesInFavor"
 	byte 0x766f746573496e4661766f72 // "votesInFavor"
@@ -482,7 +502,7 @@ abi_route_getProposal:
 getProposal:
 	proto 0 0
 
-	// contracts/dao.algo.ts:92
+	// contracts/dao.algo.ts:98
 	// return this.proposal.value;
 	byte 0x70726f706f73616c // "proposal"
 	app_global_get
@@ -509,7 +529,7 @@ abi_route_getVotes:
 getVotes:
 	proto 0 0
 
-	// contracts/dao.algo.ts:96
+	// contracts/dao.algo.ts:102
 	// return [this.votesInFavor.value, this.votesTotal.value];
 	byte 0x766f746573496e4661766f72 // "votesInFavor"
 	app_global_get
@@ -534,7 +554,7 @@ abi_route_getRegisteredAsa:
 getRegisteredAsa:
 	proto 0 0
 
-	// contracts/dao.algo.ts:100
+	// contracts/dao.algo.ts:106
 	// return this.registeredAsa.value;
 	byte 0x72656769737465726564417361 // "registeredAsa"
 	app_global_get
@@ -546,7 +566,7 @@ getRegisteredAsa:
 	retsub
 
 create_NoOp:
-	method "createApplication(string)void"
+	method "createApplication(string,uint64)void"
 	txna ApplicationArgs 0
 	match abi_route_createApplication
 	err

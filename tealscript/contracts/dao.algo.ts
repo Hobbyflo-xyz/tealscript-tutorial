@@ -5,16 +5,21 @@ class Dao extends Contract {
   proposal = GlobalStateKey<string>();
   votesTotal = GlobalStateKey<number>();
   votesInFavor = GlobalStateKey<number>();
-
   // use local storage to record if someone has voted or not
   // inFavor = LocalStateKey<boolean>();
-
-  // use local storage to record if someone has voted or not
+  // use box storage to record if someone has voted or not
   inFavor = BoxMap<Address, boolean>();
 
-  createApplication(proposal: string): void {
+  endTime = GlobalStateKey<number>();
+
+  createApplication(proposal: string, length: number): void {
     this.proposal.value = proposal;
+    this.endTime.value = length + globals.latestTimestamp // in seconds
   }
+
+  // createApplication(proposal: string): void {
+  //   this.proposal.value = proposal;
+  // }
 
   // mint DAO token
   bootstrap(): Asset {
@@ -74,6 +79,7 @@ class Dao extends Contract {
   }
 
   vote(boxMBRPayment: PayTxn, inFavor: boolean, registeredAsa: Asset): void {
+    assert(globals.latestTimestamp <= this.endTime.value)
     assert(this.txn.sender.assetBalance(this.registeredAsa.value) === 1);
     assert(!this.inFavor(this.txn.sender).exists);
     const preBoxMBR = this.app.address.minBalance;

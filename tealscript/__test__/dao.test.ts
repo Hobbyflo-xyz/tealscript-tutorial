@@ -60,6 +60,30 @@ describe('Dao', () => {
     );
   }
 
+  const deregister = async () => {
+      const { appAddress } = await appClient.appClient.getAppReference();
+  
+      await appClient.deregister(
+        { registeredAsa },
+        {
+          sender,
+          sendParams: { fee: algokit.microAlgos(3_000) },
+          boxes: [algosdk.decodeAddress(sender.addr).publicKey],
+        },
+      );
+  
+      const registeredAsaCloseTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+        from: sender.addr,
+        to: appAddress,
+        closeRemainderTo: appAddress,
+        amount: 0,
+        assetIndex: Number(registeredAsa),
+        suggestedParams: await algokit.getTransactionParams(undefined, algod),
+      });
+  
+      await algokit.sendTransaction({ transaction: registeredAsaCloseTxn, from: sender }, algod);
+    }
+
   beforeEach(fixture.beforeEach);
 
   beforeAll(async () => {
@@ -85,7 +109,8 @@ describe('Dao', () => {
       algod
     );
 
-    await appClient.create.createApplication({ proposal });
+    await algod.setBlockOffsetTimestamp(1).do()
+    await appClient.create.createApplication({ proposal, length: 60 });
   });
 
   test('getProposal', async () => {
@@ -191,20 +216,7 @@ describe('Dao', () => {
 
   test('deregister', async () => {
     console.log('deregister')
-    await appClient.deregister(
-      {
-        registeredAsa,
-      },
-      {
-        sender,
-        sendParams: {
-          fee: algokit.microAlgos(3_000),
-        },
-        boxes: [
-          algosdk.decodeAddress(sender.addr).publicKey
-        ]
-      }
-    );
+    await deregister()
 
     const votesAfter = await appClient.getVotes({});
     expect(votesAfter.return?.valueOf()).toEqual([BigInt(0), BigInt(0)]);
@@ -212,27 +224,6 @@ describe('Dao', () => {
     await expect(
       vote(false)
     ).rejects.toThrow();
-
-    const { appAddress } = await appClient.appClient.getAppReference();
-
-    const registeredAsaCloseTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-      from: sender.addr,
-      to: appAddress,
-      closeRemainderTo: appAddress,
-      amount: 0,
-      assetIndex: Number(registeredAsa),
-      suggestedParams: await algokit.getTransactionParams(undefined, algod),
-    });
-
-    await algokit.sendTransaction(
-      {
-        transaction: registeredAsaCloseTxn,
-        from: sender,
-      },
-      algod
-    );
-
-    // --- --- Opt-in --- ---
 
     const registeredAsaOptInTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
       from: sender.addr,
@@ -256,4 +247,12 @@ describe('Dao', () => {
     const votesAfter2 = await appClient.getVotes({});
     expect(votesAfter2.return?.valueOf()).toEqual([BigInt(1), BigInt(1)]);
   });
+
+  test('endTime', async () => {
+    await deregister()
+    await algod.setBlockOffsetTimestamp(120).do()
+    await register()
+    // await algod.setBlockOffsetTimestamp(120).do()
+    await expect(vote(true)).rejects.toThrow()
+  })
 });
